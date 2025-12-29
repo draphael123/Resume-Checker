@@ -2,7 +2,7 @@
 
 import { RoleMatch, RoleCategory } from '@/lib/roleMatcher';
 import { ParsedResume } from '@/lib/resumeParser';
-import { Award, TrendingUp, Briefcase, GraduationCap, Certificate, X } from 'lucide-react';
+import { Award, TrendingUp, Briefcase, GraduationCap, BadgeCheck, X } from 'lucide-react';
 
 interface ResultsDisplayProps {
   resume: ParsedResume;
@@ -110,7 +110,7 @@ export default function ResultsDisplay({ resume, matches, onClose }: ResultsDisp
                 {match.matchedSkills.length > 0 && (
                   <div className="space-y-1">
                     <div className="flex items-center gap-1 text-gray-500">
-                      <Certificate className="h-3 w-3" />
+                      <BadgeCheck className="h-3 w-3" />
                       <span className="font-medium">Skills</span>
                     </div>
                     <p className="text-gray-700">{match.matchedSkills.length} matches</p>
