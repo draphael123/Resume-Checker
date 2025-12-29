@@ -8,7 +8,7 @@ interface ResumeUploadProps {
   disabled?: boolean;
 }
 
-const MAX_FILES = 30;
+const MAX_FILES = 100;
 
 export default function ResumeUpload({ onUploadBatch, disabled }: ResumeUploadProps) {
   const [dragActive, setDragActive] = useState(false);
