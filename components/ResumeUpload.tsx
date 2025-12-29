@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Upload, X, FileText, User } from 'lucide-react';
+import { Upload, X, FileText, Files } from 'lucide-react';
 
 interface ResumeUploadProps {
-  onUpload: (file: File, name: string) => void;
+  onUploadBatch: (files: File[]) => void;
   disabled?: boolean;
 }
 
-export default function ResumeUpload({ onUpload, disabled }: ResumeUploadProps) {
+const MAX_FILES = 30;
+
+export default function ResumeUpload({ onUploadBatch, disabled }: ResumeUploadProps) {
   const [dragActive, setDragActive] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [personName, setPersonName] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -29,19 +30,27 @@ export default function ResumeUpload({ onUpload, disabled }: ResumeUploadProps) 
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (isValidFileType(file)) {
-        setSelectedFile(file);
+    if (e.dataTransfer.files) {
+      const files = Array.from(e.dataTransfer.files);
+      const validFiles = files.filter(isValidFileType).slice(0, MAX_FILES);
+      if (validFiles.length > 0) {
+        setSelectedFiles(prev => {
+          const combined = [...prev, ...validFiles];
+          return combined.slice(0, MAX_FILES);
+        });
       }
     }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (isValidFileType(file)) {
-        setSelectedFile(file);
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      const validFiles = files.filter(isValidFileType).slice(0, MAX_FILES);
+      if (validFiles.length > 0) {
+        setSelectedFiles(prev => {
+          const combined = [...prev, ...validFiles];
+          return combined.slice(0, MAX_FILES);
+        });
       }
     }
   };
@@ -57,18 +66,21 @@ export default function ResumeUpload({ onUpload, disabled }: ResumeUploadProps) 
   };
 
   const handleSubmit = () => {
-    if (selectedFile) {
-      onUpload(selectedFile, personName || 'Unknown');
-      setSelectedFile(null);
-      setPersonName('');
+    if (selectedFiles.length > 0) {
+      onUploadBatch(selectedFiles);
+      setSelectedFiles([]);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
   };
 
-  const removeFile = () => {
-    setSelectedFile(null);
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const clearAll = () => {
+    setSelectedFiles([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -76,32 +88,13 @@ export default function ResumeUpload({ onUpload, disabled }: ResumeUploadProps) 
 
   return (
     <div className="w-full space-y-4">
-      {/* Person Name Input */}
-      <div className="space-y-2">
-        <label htmlFor="person-name" className="block text-sm font-medium text-gray-700">
-          Team Member Name (Optional)
-        </label>
-        <div className="relative">
-          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-          <input
-            id="person-name"
-            type="text"
-            value={personName}
-            onChange={(e) => setPersonName(e.target.value)}
-            placeholder="Enter team member name"
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            disabled={disabled}
-          />
-        </div>
-      </div>
-
       {/* File Upload Area */}
       <div
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
           dragActive
             ? 'border-primary-500 bg-primary-50'
             : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
@@ -112,27 +105,35 @@ export default function ResumeUpload({ onUpload, disabled }: ResumeUploadProps) 
           ref={fileInputRef}
           type="file"
           accept=".pdf,.doc,.docx,.txt"
+          multiple
           onChange={handleFileInput}
           className="hidden"
           disabled={disabled}
         />
         
-        {selectedFile ? (
-          <div className="space-y-2">
-            <FileText className="mx-auto h-12 w-12 text-primary-500" />
-            <p className="text-sm font-medium text-gray-700">{selectedFile.name}</p>
-            <p className="text-xs text-gray-500">
-              {(selectedFile.size / 1024).toFixed(2)} KB
-            </p>
+        {selectedFiles.length > 0 ? (
+          <div className="space-y-3">
+            <Files className="mx-auto h-10 w-10 text-primary-500" />
+            <div>
+              <p className="text-sm font-medium text-gray-700">
+                {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} selected
+                {selectedFiles.length >= MAX_FILES && ` (${MAX_FILES} max)`}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {selectedFiles.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024 < 1
+                  ? `${(selectedFiles.reduce((sum, f) => sum + f.size, 0) / 1024).toFixed(2)} KB total`
+                  : `${(selectedFiles.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} MB total`}
+              </p>
+            </div>
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                removeFile();
+                clearAll();
               }}
               className="mt-2 text-red-500 hover:text-red-700 text-sm inline-flex items-center gap-1"
             >
               <X className="h-4 w-4" />
-              Remove
+              Clear All
             </button>
           </div>
         ) : (
@@ -140,24 +141,53 @@ export default function ResumeUpload({ onUpload, disabled }: ResumeUploadProps) 
             <Upload className="mx-auto h-12 w-12 text-gray-400" />
             <div>
               <p className="text-sm font-medium text-gray-700">
-                Drop your resume here, or click to browse
+                Drop resumes here, or click to browse
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Supports PDF, DOC, DOCX, and TXT files
+                Upload up to {MAX_FILES} files (PDF, DOC, DOCX, TXT)
               </p>
             </div>
           </div>
         )}
       </div>
 
+      {/* Selected Files List */}
+      {selectedFiles.length > 0 && (
+        <div className="max-h-48 overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-3 bg-gray-50">
+          {selectedFiles.map((file, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between bg-white p-2 rounded text-sm"
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                <span className="truncate text-gray-700">{file.name}</span>
+                <span className="text-xs text-gray-500 flex-shrink-0">
+                  {(file.size / 1024).toFixed(1)} KB
+                </span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeFile(index);
+                }}
+                className="text-red-500 hover:text-red-700 p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Submit Button */}
-      {selectedFile && (
+      {selectedFiles.length > 0 && (
         <button
           onClick={handleSubmit}
           disabled={disabled}
           className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          Analyze Resume
+          Analyze {selectedFiles.length} Resume{selectedFiles.length !== 1 ? 's' : ''}
         </button>
       )}
     </div>
